@@ -25,152 +25,172 @@ interface FinalReportProps {
 export default function FinalReport({ result }: FinalReportProps) {
   if (!result) return null;
 
+  /**
+   * Couleur du niveau de risque
+   */
+  const riskColor = () => {
+    if (result.riskLevel === "Suspicion élevée") return "badge-error";
+
+    if (result.riskLevel === "Suspicion modérée") return "badge-warning";
+
+    return "badge-success";
+  };
+
   return (
-    <div
-      className="
-        bg-white
-        rounded-2xl
-        shadow-xl
-        p-6
-        space-y-8
-      "
-    >
-      {/* Titre */}
+    <div className="space-y-6">
+      {/* HEADER */}
 
-      <div>
-        <h2 className="text-2xl font-bold">Rapport final LifeLens AI</h2>
-
-        <p className="text-gray-500 mt-2">
-          Analyse basée sur l'image, les symptômes et les connaissances
-          médicales.
-        </p>
-      </div>
-
-      {/* Niveau de risque */}
-
-      <section
+      <div
         className="
-          bg-blue-50
-          rounded-xl
-          p-5
+        card
+        bg-base-100
+        shadow-xl
         "
       >
-        <h3 className="font-semibold text-gray-600">Niveau de risque</h3>
-
-        <p className="text-2xl font-bold mt-2">{result.riskLevel}</p>
-      </section>
-
-      {/* Confiance */}
-
-      <section>
-        <h3 className="font-bold mb-3">Niveau de confiance</h3>
-
-        <div
-          className="
-            w-full
-            h-3
-            bg-gray-200
-            rounded-full
-          "
-        >
-          <div
+        <div className="card-body">
+          <h2
             className="
-              h-3
-              bg-green-500
-              rounded-full
+            card-title
+            text-2xl
             "
-            style={{
-              width: `${result.confidence * 100}%`,
-            }}
-          />
+          >
+            🩺 Rapport final LifeLens AI
+          </h2>
+
+          <p className="text-sm opacity-70">
+            Analyse basée sur :
+            <br />
+            Image + Symptômes + Connaissances médicales
+          </p>
         </div>
+      </div>
 
-        <p className="mt-2 font-semibold">
-          {(result.confidence * 100).toFixed(0)} %
-        </p>
-      </section>
+      {/* NIVEAU RISQUE */}
 
-      {/* Résumé */}
+      <div
+        className="
+        card
+        bg-base-100
+        shadow-xl
+        "
+      >
+        <div className="card-body">
+          <h3 className="font-bold text-lg">Niveau de risque</h3>
 
-      <ReportSection title="Résumé" content={result.summary} />
+          <div>
+            <span
+              className={`
+              badge
+              badge-lg
+              ${riskColor()}
+              `}
+            >
+              {result.riskLevel}
+            </span>
+          </div>
 
-      {/* Signes visuels */}
+          <div className="mt-4">
+            <p className="font-semibold">Niveau de confiance</p>
 
-      <ListSection title="Signes visuels détectés" items={result.visualSigns} />
+            <progress
+              className="
+              progress
+              progress-primary
+              w-full
+              "
+              value={result.confidence * 100}
+              max="100"
+            />
 
-      {/* Facteurs de risque */}
+            <p className="mt-2">{Math.round(result.confidence * 100)} %</p>
+          </div>
+        </div>
+      </div>
 
-      <ListSection
-        title="Facteurs augmentant la suspicion"
+      {/* RESUME */}
+
+      <div
+        className="
+        card
+        bg-base-100
+        shadow-xl
+        "
+      >
+        <div className="card-body">
+          <h3 className="card-title">Résumé</h3>
+
+          <p>{result.summary}</p>
+        </div>
+      </div>
+
+      {/* SIGNES VISUELS */}
+
+      <ReportList
+        title="👁️ Signes visuels détectés"
+        items={result.visualSigns}
+      />
+
+      {/* FACTEURS RISQUE */}
+
+      <ReportList
+        title="⚠️ Facteurs augmentant la suspicion"
         items={result.riskFactors}
       />
 
-      {/* Signes absents */}
+      {/* SIGNES ABSENTS */}
 
-      <ListSection title="Signes non rapportés" items={result.negativeSigns} />
-
-      {/* Symptômes patient */}
-
-      <ListSection
-        title="Symptômes rapportés"
-        items={
-          result.reportedSymptoms.length
-            ? result.reportedSymptoms
-            : ["Aucun symptôme rapporté"]
-        }
+      <ReportList
+        title="✅ Signes non rapportés"
+        items={result.negativeSigns}
       />
 
-      {/* Raisonnement IA */}
+      {/* SYMPTOMES */}
 
-      <ReportSection
-        title="Raisonnement LifeLens AI"
-        content={result.reasoning}
+      <ReportList
+        title="📝 Symptômes rapportés"
+        items={result.reportedSymptoms}
       />
 
-      {/* Recommandation */}
+      {/* RAISONNEMENT */}
 
-      <section
+      <div
         className="
-          bg-yellow-50
-          rounded-xl
-          p-5
+        card
+        bg-base-100
+        shadow-xl
         "
       >
-        <h3 className="font-bold mb-2">Recommandation médicale</h3>
+        <div className="card-body">
+          <h3 className="card-title">🧠 Raisonnement LifeLens AI</h3>
 
-        <p>{result.recommendation}</p>
-      </section>
+          <p>{result.reasoning}</p>
+        </div>
+      </div>
+
+      {/* RECOMMANDATION */}
+
+      <div
+        className="
+        alert
+        alert-info
+        shadow-lg
+        "
+      >
+        <div>
+          <h3 className="font-bold">🏥 Recommandation médicale</h3>
+
+          <div>{result.recommendation}</div>
+        </div>
+      </div>
     </div>
   );
 }
 
 /**
- * Affichage d'un bloc texte
+ * Composant réutilisable
+ * pour afficher les listes
  */
-
-function ReportSection({
-  title,
-
-  content,
-}: {
-  title: string;
-
-  content: string;
-}) {
-  return (
-    <section>
-      <h3 className="font-bold mb-2">{title}</h3>
-
-      <p className="text-gray-700 leading-relaxed">{content}</p>
-    </section>
-  );
-}
-
-/**
- * Affichage d'une liste
- */
-
-function ListSection({
+function ReportList({
   title,
 
   items,
@@ -180,20 +200,32 @@ function ListSection({
   items: string[];
 }) {
   return (
-    <section>
-      <h3 className="font-bold mb-3">{title}</h3>
+    <div
+      className="
+      card
+      bg-base-100
+      shadow-xl
+      "
+    >
+      <div className="card-body">
+        <h3 className="card-title">{title}</h3>
 
-      <ul
-        className="
-          list-disc
-          pl-6
-          space-y-2
-        "
-      >
-        {items?.map((item, index) => (
-          <li key={index}>{item}</li>
-        ))}
-      </ul>
-    </section>
+        {items.length > 0 ? (
+          <ul
+            className="
+              list-disc
+              ml-6
+              space-y-2
+              "
+          >
+            {items.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="opacity-60">Aucun élément rapporté</p>
+        )}
+      </div>
+    </div>
   );
 }

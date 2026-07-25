@@ -145,6 +145,12 @@ export default function Home() {
 
       setAnalysisResult(data.result);
 
+      // Reset avant nouvelles questions
+      setQuestions([]);
+      setSymptomsCompleted(false);
+      setChatHistory([]);
+      setFinalReport(null);
+
       /**
        * ETAPE 1.2
        *
@@ -225,7 +231,6 @@ export default function Home() {
     <main
       className="
       min-h-screen
-      bg-slate-100
       flex
       justify-center
       py-12
@@ -242,10 +247,11 @@ export default function Home() {
         {/* Header */}
 
         <div className="text-center">
-          <h1 className="text-4xl font-bold">LifeLens AI</h1>
+          <h1 className="text-5xl font-bold">AfyaAssist</h1>
 
-          <p className="text-gray-500 mt-2">
-            AI Visual Health Assistant powered by Gemma 4
+          <p className="text-center mt-4 text-gray-100">
+            Assistant de santé visuel pour le dépistage de la jaunisse <br />{" "}
+            alimenté par Gemma 4
           </p>
         </div>
 
@@ -319,8 +325,7 @@ export default function Home() {
             disabled={isFinalizing}
             className="
             w-full
-            bg-green-600
-            hover:bg-green-700
+           btn-primary
             text-white
             rounded-xl
             py-4

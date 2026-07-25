@@ -2,111 +2,335 @@
 
 import { useState } from "react";
 
-type Question = {
+/**
+ * Structure d'une question symptôme
+ */
+interface Question {
   id: number;
+
   text: string;
-};
+}
 
-type Answer = {
-  question: string;
-  answer: string;
-};
+/**
+ * Structure d'un message du chat
+ */
+interface Message {
+  role: "assistant" | "user";
 
-export default function SymptomChat({
-  questions = [],
+  content: string;
+}
 
-  onComplete,
-}: {
+interface SymptomChatProps {
+  /**
+   * Questions générées par Gemma
+   */
   questions: Question[];
 
-  onComplete?: (answers: Answer[]) => void;
-}) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  /**
+   * Retourne toute la conversation
+   * lorsque toutes les questions sont terminées
+   */
+  onComplete: (messages: Message[]) => void;
+}
 
-  const [answer, setAnswer] = useState("");
+export default function SymptomChat({
+  questions,
 
-  const [answers, setAnswers] = useState<Answer[]>([]);
+  onComplete,
+}: SymptomChatProps) {
+  /**
+   * Question actuellement affichée
+   */
+  const [currentQuestion, setCurrentQuestion] = useState(0);
 
-  const currentQuestion = questions[currentIndex];
+  /**
+   * Historique conversation
+   */
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: "assistant",
 
-  const handleNext = () => {
-    if (!answer.trim()) return;
+      content: questions[0]?.text ?? "Bonjour, commençons l'évaluation.",
+    },
+  ]);
 
-    const newAnswers = [
-      ...answers,
+  /**
+   * Texte de réponse utilisateur
+   */
+  const [input, setInput] = useState("");
 
-      {
-        question: currentQuestion.text,
+  /**
+   * Simulation réflexion IA
+   */
+  const [isTyping, setIsTyping] = useState(false);
 
-        answer: answer,
-      },
-    ];
+  /**
+   * Questionnaire terminé
+   */
+  const [isCompleted, setIsCompleted] = useState(false);
 
-    setAnswers(newAnswers);
+  /**
+   * Envoi d'une réponse utilisateur
+   */
+  const sendMessage = async () => {
+    /**
+     * Empêche un envoi vide
+     */
+    if (!input.trim()) return;
 
-    setAnswer("");
+    const userMessage: Message = {
+      role: "user",
 
-    // Dernière question terminée
+      content: input,
+    };
 
-    if (currentIndex === questions.length - 1) {
-      onComplete?.(newAnswers);
+    const updatedMessages = [...messages, userMessage];
+
+    /**
+     * Affichage immédiat
+     * de la réponse utilisateur
+     */
+    setMessages(updatedMessages);
+
+    setInput("");
+
+    /**
+     * Vérification :
+     * dernière question atteinte
+     */
+    if (currentQuestion + 1 >= questions.length) {
+      /**
+       * Fin du questionnaire
+       */
+      setIsCompleted(true);
+
+      /**
+       * Envoi de toutes les réponses
+       * au composant parent
+       */
+      onComplete(updatedMessages);
 
       return;
     }
 
-    setCurrentIndex(currentIndex + 1);
-  };
+    /**
+     * Simulation analyse Gemma
+     */
+    setIsTyping(true);
 
-  if (!questions.length) {
-    return null;
-  }
+    setTimeout(() => {
+      const nextQuestion = questions[currentQuestion + 1];
+
+      setMessages((previous) => [
+        ...previous,
+
+        {
+          role: "assistant",
+
+          content: nextQuestion.text,
+        },
+      ]);
+
+      setCurrentQuestion(currentQuestion + 1);
+
+      setIsTyping(false);
+    }, 800);
+  };
 
   return (
     <div
       className="
-      bg-white
-      rounded-xl
-      shadow
-      p-6
-      space-y-6
+      card
+      bg-base-100
+      shadow-xl
       "
     >
-      <h2 className="text-xl font-bold">Assistant santé LifeLens AI</h2>
-
-      <p className="text-gray-500">
-        Question {currentIndex + 1} / {questions.length}
-      </p>
-
-      <div>
-        <p className="font-semibold">{currentQuestion.text}</p>
-      </div>
-
-      <textarea
-        value={answer}
-        onChange={(e) => setAnswer(e.target.value)}
-        placeholder="Votre réponse..."
+      <div
         className="
-        w-full
-        border
-        rounded-lg
-        p-3
-        "
-      />
-
-      <button
-        onClick={handleNext}
-        className="
-        w-full
-        bg-blue-600
-        text-white
-        rounded-lg
-        py-3
+        card-body
         "
       >
-        {currentIndex === questions.length - 1
-          ? "Terminer"
-          : "Question suivante"}
-      </button>
+        {/* HEADER */}
+
+        <div
+          className="
+          flex
+          justify-between
+          items-center
+          "
+        >
+          <div>
+            <h2
+              className="
+              card-title
+              "
+            >
+              🩺 LifeLens AI
+            </h2>
+
+            <p
+              className="
+              text-sm
+              opacity-60
+              "
+            >
+              Analyse des symptômes
+            </p>
+          </div>
+
+          <div
+            className="
+            badge
+            badge-primary
+            "
+          >
+            {Math.min(currentQuestion + 1, questions.length)}/{questions.length}
+          </div>
+        </div>
+
+        {/* BARRE PROGRESSION */}
+
+        <progress
+          className="
+          progress
+          progress-primary
+          w-full
+          "
+          value={currentQuestion + 1}
+          max={questions.length}
+        />
+
+        {/* ZONE MESSAGE */}
+
+        <div
+          className="
+          h-96
+          overflow-y-auto
+          space-y-3
+          mt-4
+          "
+        >
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={
+                message.role === "assistant"
+                  ? "chat chat-start"
+                  : "chat chat-end"
+              }
+            >
+              <div
+                className="
+                  chat-image
+                  avatar
+                  "
+              >
+                <div
+                  className="
+                    w-10
+                    rounded-full
+                    bg-primary
+                    text-white
+                    flex
+                    items-center
+                    justify-center
+                    "
+                >
+                  {message.role === "assistant" ? "AI" : "👤"}
+                </div>
+              </div>
+
+              <div
+                className={
+                  message.role === "assistant"
+                    ? "chat-bubble chat-bubble-primary"
+                    : "chat-bubble"
+                }
+              >
+                {message.content}
+              </div>
+            </div>
+          ))}
+
+          {/* Animation IA */}
+
+          {isTyping && (
+            <div className="chat chat-start">
+              <div
+                className="
+                  chat-bubble
+                  chat-bubble-primary
+                  "
+              >
+                LifeLens AI écrit...
+                <span
+                  className="
+                    loading
+                    loading-dots
+                    loading-sm
+                    ml-2
+                    "
+                />
+              </div>
+            </div>
+          )}
+
+          {/* FIN QUESTIONNAIRE */}
+
+          {isCompleted && (
+            <div
+              className="
+                alert
+                alert-success
+                mt-4
+                "
+            >
+              <span>
+                ✅ Questionnaire terminé. Vous pouvez générer votre rapport
+                final.
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* ZONE REPONSE */}
+
+        {!isCompleted && (
+          <div
+            className="
+              flex
+              gap-2
+              mt-4
+              "
+          >
+            <input
+              className="
+                input
+                input-bordered
+                flex-1
+                "
+              placeholder="
+                Décrivez vos symptômes...
+                "
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") sendMessage();
+              }}
+            />
+
+            <button
+              className="
+                btn
+                btn-primary
+                "
+              onClick={sendMessage}
+            >
+              Envoyer
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
