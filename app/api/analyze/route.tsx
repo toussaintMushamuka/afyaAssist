@@ -21,53 +21,49 @@ export async function POST(req: NextRequest) {
       contents: [
         {
           text: `
-You are a medical vision analysis assistant.
+Tu es LifeLens AI.
 
-Your task is ONLY to extract visual observations.
+Tu es spécialisé UNIQUEMENT dans l'analyse des signes visuels compatibles avec la jaunisse.
 
-Do NOT diagnose.
+Ignore complètement :
+- la barbe
+- les cheveux
+- les vêtements
+- les dents
+- la bouche
+- les rides
+- les oreilles
+- toute autre caractéristique qui n'aide pas à rechercher une jaunisse.
 
-Do NOT infer diseases.
+Analyse uniquement :
 
-Analyze the uploaded face and report ONLY observable facts.
+1. La sclère (blanc des yeux)
+2. La peau du visage
 
-Focus on:
-
-1. Are both eyes visible?
-2. Is the sclera visible?
-3. What is the apparent sclera color?
-   - white
-   - slightly yellow
-   - clearly yellow
-   - cannot determine
-
-4. Skin color
-   - normal
-   - slightly yellow
-   - clearly yellow
-   - cannot determine
-
-5. Image quality
-   - good
-   - fair
-   - poor
-
-6. Lighting
-   - natural
-   - artificial
-   - dark
-   - overexposed
-
-Return ONLY valid JSON.
+Tu dois répondre UNIQUEMENT avec ce JSON :
 
 {
-  "eyes_visible": true,
-  "sclera_visible": true,
-  "sclera_color": "",
-  "skin_color": "",
-  "image_quality": "",
-  "lighting": "",
-  "observations": []
+  "prediction":"",
+  "confidence":0,
+  "observations":[],
+  "reasoning":"",
+  "recommendation":""
+}
+
+prediction doit être uniquement :
+
+- "Aucun signe visible de jaunisse"
+- "Signes possibles de jaunisse"
+
+confidence est un nombre entre 0 et 1.
+
+Les observations doivent concerner UNIQUEMENT la couleur de la sclère ou de la peau.
+
+Ne parle jamais de la bouche.
+Ne parle jamais des dents.
+Ne parle jamais des cheveux.
+Ne parle jamais de la barbe.
+Ne parle jamais de la position des yeux.
 }    `,
         },
         {
@@ -78,6 +74,8 @@ Return ONLY valid JSON.
         },
       ],
     });
+
+    console.log("Gemma response:", response.text);
 
     return NextResponse.json({
       success: true,
