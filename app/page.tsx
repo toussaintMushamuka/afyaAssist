@@ -4,60 +4,113 @@ import { useState } from "react";
 
 import ImageUploader from "@/components/ImageUploader";
 import SymptomChat from "@/components/SymptomChat";
+import FinalReport from "@/components/FinalReport";
 
 import { fileToBase64 } from "@/lib/file";
 
+/**
+ * Résultat de l'analyse visuelle Gemma Vision
+ */
+interface ImageAnalysis {
+  prediction: string;
+
+  confidence: number;
+
+  observations: string[];
+
+  reasoning: string;
+
+  recommendation: string;
+}
+
+/**
+ * Question générée par Gemma
+ */
+interface SymptomQuestion {
+  id: number;
+
+  text: string;
+}
+
+/**
+ * Réponse finale LifeLens AI
+ */
+interface FinalReportType {
+  riskLevel: string;
+
+  confidence: number;
+
+  summary: string;
+
+  riskFactors: string[];
+
+  negativeSigns: string[];
+
+  visualSigns: string[];
+
+  reportedSymptoms: string[];
+
+  reasoning: string;
+
+  recommendation: string;
+}
+
 export default function Home() {
   /**
-   * Image envoyée par l'utilisateur
+   * Image du patient
    */
   const [image, setImage] = useState<File | null>(null);
 
   /**
-   * Aperçu de l'image dans l'interface
+   * Aperçu image
    */
   const [preview, setPreview] = useState<string | null>(null);
 
   /**
-   * Etat pendant l'analyse visuelle Gemma Vision
+   * Chargement analyse image
    */
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   /**
-   * Résultat de l'analyse de l'image
-   *
-   * Exemple :
-   * {
-   *  prediction:"Signes possibles de jaunisse",
-   *  confidence:0.8
-   * }
+   * Résultat analyse visuelle
    */
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [analysisResult, setAnalysisResult] = useState<ImageAnalysis | null>(
+    null,
+  );
 
   /**
-   * Historique complet du dialogue médical
-   *
-   * Cet historique sera envoyé
-   * à Gemma pour l'analyse finale.
+   * Questions générées par Gemma
+   */
+  const [questions, setQuestions] = useState<SymptomQuestion[]>([]);
+
+  /**
+   * Réponses du patient
    */
   const [chatHistory, setChatHistory] = useState<any[]>([]);
 
   /**
-   * Rapport final généré par :
-   *
-   * Image + Symptômes + RAG
+   * Indique que toutes les questions
+   * sont terminées
    */
-  const [finalReport, setFinalReport] = useState<any>(null);
+  const [symptomsCompleted, setSymptomsCompleted] = useState(false);
 
   /**
-   * Etat de génération du rapport final
+   * Rapport final
+   */
+  const [finalReport, setFinalReport] = useState<FinalReportType | null>(null);
+
+  /**
+   * Chargement génération rapport
    */
   const [isFinalizing, setIsFinalizing] = useState(false);
 
   /**
-   * Première étape :
+   * ETAPE 1
    *
-   * Analyse de l'image avec Gemma Vision
+   * Analyse image avec Gemma Vision
+   *
+   * Puis génération automatique
+   * des questions adaptées
    */
   const handleAnalyze = async () => {
     if (!image) return;
@@ -65,9 +118,11 @@ export default function Home() {
     try {
       setIsAnalyzing(true);
 
-      // Conversion image -> Base64
       const base64 = await fileToBase64(image);
 
+      /**
+       * Analyse visuelle
+       */
       const response = await fetch("/api/analyze", {
         method: "POST",
 
@@ -82,11 +137,40 @@ export default function Home() {
 
       const data = await response.json();
 
+      if (!data.success) {
+        throw new Error(data.error);
+      }
+
       console.log("Analyse image :", data.result);
 
       setAnalysisResult(data.result);
+
+      /**
+       * ETAPE 1.2
+       *
+       * Demander à Gemma
+       * de créer les questions
+       * adaptées aux signes observés
+       */
+      const questionResponse = await fetch("/api/generate-questions", {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          imageAnalysis: data.result,
+        }),
+      });
+
+      const questionData = await questionResponse.json();
+
+      console.log("Questions Gemma :", questionData.result);
+
+      setQuestions(questionData.result.questions);
     } catch (error) {
-      console.error("Erreur analyse image :", error);
+      console.error("Erreur analyse :", error);
 
       setAnalysisResult(null);
     } finally {
@@ -95,17 +179,19 @@ export default function Home() {
   };
 
   /**
-   * Deuxième étape :
+   * ETAPE 2
    *
-   * Fusionner :
+   * Analyse finale
    *
-   * - Analyse image
-   * - Symptômes conversationnels
-   * - Base médicale RAG
+   * Utilise :
    *
-   * pour obtenir le rapport final.
+   * - image
+   * - réponses patient
+   * - RAG médical
    */
   const generateFinalReport = async () => {
+    if (!analysisResult) return;
+
     try {
       setIsFinalizing(true);
 
@@ -129,7 +215,7 @@ export default function Home() {
 
       setFinalReport(data.result);
     } catch (error) {
-      console.error("Erreur rapport final :", error);
+      console.error("Erreur rapport final", error);
     } finally {
       setIsFinalizing(false);
     }
@@ -138,22 +224,23 @@ export default function Home() {
   return (
     <main
       className="
-        min-h-screen
-        bg-slate-100
-        flex
-        justify-center
-        py-12
-        px-6
+      min-h-screen
+      bg-slate-100
+      flex
+      justify-center
+      py-12
+      px-6
       "
     >
       <div
         className="
-          w-full
-          max-w-3xl
-          space-y-8
+        w-full
+        max-w-3xl
+        space-y-8
         "
       >
-        {/* En-tête application */}
+        {/* Header */}
+
         <div className="text-center">
           <h1 className="text-4xl font-bold">LifeLens AI</h1>
 
@@ -163,6 +250,7 @@ export default function Home() {
         </div>
 
         {/* Upload image */}
+
         <ImageUploader
           image={image}
           preview={preview}
@@ -171,53 +259,74 @@ export default function Home() {
 
             setPreview(url);
 
-            // Nouvelle image = nouveau diagnostic
+            // Reset nouveau patient
+
             setAnalysisResult(null);
 
+            setQuestions([]);
+
             setChatHistory([]);
+
+            setSymptomsCompleted(false);
 
             setFinalReport(null);
           }}
         />
 
         {/* Bouton analyse image */}
+
         {image && (
           <button
             onClick={handleAnalyze}
             disabled={isAnalyzing}
             className="
-              w-full
-              bg-blue-600
-              hover:bg-blue-700
-              text-white
-              rounded-xl
-              py-4
-              font-semibold
-              transition
-              disabled:opacity-50
+            w-full
+            bg-blue-600
+            hover:bg-blue-700
+            text-white
+            rounded-xl
+            py-4
+            font-semibold
+            disabled:opacity-50
             "
           >
-            {isAnalyzing ? "Analyse de l'image..." : "Analyser avec Gemma"}
+            {isAnalyzing
+              ? "Analyse et préparation des questions..."
+              : "Analyser avec Gemma"}
           </button>
         )}
 
-        {/* Conversation symptômes */}
-        {analysisResult && <SymptomChat onHistoryChange={setChatHistory} />}
+        {/* Questionnaire dynamique */}
 
-        {/* Bouton génération rapport final */}
-        {chatHistory.length > 1 && (
+        {questions.length > 0 && (
+          <SymptomChat
+            questions={questions}
+            onComplete={(answers) => {
+              console.log("Réponses patient :", answers);
+
+              setChatHistory(answers);
+
+              setSymptomsCompleted(true);
+            }}
+          />
+        )}
+
+        {/* Rapport seulement après toutes les réponses */}
+
+        {symptomsCompleted && (
           <button
             onClick={generateFinalReport}
             disabled={isFinalizing}
             className="
-                w-full
-                bg-green-600
-                text-white
-                rounded-xl
-                py-4
-                font-semibold
-                disabled:opacity-50
-              "
+            w-full
+            bg-green-600
+            hover:bg-green-700
+            text-white
+            rounded-xl
+            py-4
+            font-semibold
+            disabled:opacity-50
+            "
           >
             {isFinalizing
               ? "Génération du rapport..."
@@ -225,30 +334,9 @@ export default function Home() {
           </button>
         )}
 
-        {/* Affichage temporaire du rapport final */}
-        {finalReport && (
-          <div
-            className="
-                bg-white
-                rounded-xl
-                shadow
-                p-6
-              "
-          >
-            <h2 className="text-xl font-bold mb-4">
-              Rapport final LifeLens AI
-            </h2>
+        {/* Rapport final */}
 
-            <pre
-              className="
-                  whitespace-pre-wrap
-                  text-sm
-                "
-            >
-              {JSON.stringify(finalReport, null, 2)}
-            </pre>
-          </div>
-        )}
+        {finalReport && <FinalReport result={finalReport} />}
       </div>
     </main>
   );

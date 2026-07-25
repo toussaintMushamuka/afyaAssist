@@ -2,187 +2,111 @@
 
 import { useState } from "react";
 
-/**
- * Structure d'un message dans la conversation
- */
-type Message = {
-  role: "user" | "assistant";
-  content: string;
+type Question = {
+  id: number;
+  text: string;
 };
 
-/**
- * Props du composant
- *
- * onHistoryChange permet de transmettre
- * toute la conversation au composant parent
- * pour l'analyse finale.
- */
-interface SymptomChatProps {
-  onHistoryChange?: (messages: Message[]) => void;
-}
+type Answer = {
+  question: string;
+  answer: string;
+};
 
-export default function SymptomChat({ onHistoryChange }: SymptomChatProps) {
-  /**
-   * Historique local de la conversation
-   *
-   * L'assistant commence toujours
-   * par une première question médicale.
-   */
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content:
-        "Bonjour. Depuis quand avez-vous remarqué un jaunissement des yeux ou de la peau ?",
-    },
-  ]);
+export default function SymptomChat({
+  questions = [],
 
-  /**
-   * Texte actuellement écrit par l'utilisateur
-   */
-  const [input, setInput] = useState("");
+  onComplete,
+}: {
+  questions: Question[];
 
-  /**
-   * Etat de chargement pendant
-   * l'appel à Gemma
-   */
-  const [loading, setLoading] = useState(false);
+  onComplete?: (answers: Answer[]) => void;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  /**
-   * Envoie un message utilisateur
-   * vers Gemma
-   */
-  const sendMessage = async () => {
-    // Empêche l'envoi d'un message vide
-    if (!input.trim() || loading) return;
+  const [answer, setAnswer] = useState("");
 
-    /**
-     * Création du message utilisateur
-     */
-    const userMessage: Message = {
-      role: "user",
-      content: input,
-    };
+  const [answers, setAnswers] = useState<Answer[]>([]);
 
-    /**
-     * Nouvel historique avant appel API
-     */
-    const updatedHistory = [...messages, userMessage];
+  const currentQuestion = questions[currentIndex];
 
-    // Mise à jour immédiate de l'interface
-    setMessages(updatedHistory);
+  const handleNext = () => {
+    if (!answer.trim()) return;
 
-    // Transmission au parent
-    onHistoryChange?.(updatedHistory);
+    const newAnswers = [
+      ...answers,
 
-    // Nettoyage du champ texte
-    setInput("");
+      {
+        question: currentQuestion.text,
 
-    // Activation du chargement
-    setLoading(true);
+        answer: answer,
+      },
+    ];
 
-    try {
-      /**
-       * Appel de notre API Next.js
-       * qui communique avec Gemma
-       */
-      const response = await fetch("/api/chat", {
-        method: "POST",
+    setAnswers(newAnswers);
 
-        headers: {
-          "Content-Type": "application/json",
-        },
+    setAnswer("");
 
-        body: JSON.stringify({
-          message: input,
-          history: updatedHistory,
-        }),
-      });
+    // Dernière question terminée
 
-      const data = await response.json();
+    if (currentIndex === questions.length - 1) {
+      onComplete?.(newAnswers);
 
-      /**
-       * Message généré par Gemma
-       */
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: data.message ?? "Je n'ai pas pu générer une réponse.",
-      };
-
-      /**
-       * Historique complet après réponse IA
-       */
-      const finalHistory = [...updatedHistory, assistantMessage];
-
-      // Mise à jour interface
-      setMessages(finalHistory);
-
-      // Transmission au parent pour analyse finale
-      onHistoryChange?.(finalHistory);
-    } catch (error) {
-      console.error("Erreur pendant la conversation :", error);
-
-      const errorMessage: Message = {
-        role: "assistant",
-        content: "Une erreur est survenue pendant l'analyse.",
-      };
-
-      const finalHistory = [...updatedHistory, errorMessage];
-
-      setMessages(finalHistory);
-
-      onHistoryChange?.(finalHistory);
-    } finally {
-      // Fin du chargement
-      setLoading(false);
+      return;
     }
+
+    setCurrentIndex(currentIndex + 1);
   };
 
+  if (!questions.length) {
+    return null;
+  }
+
   return (
-    <div className="bg-white rounded-xl shadow p-6 space-y-4">
-      {/* Titre du module conversationnel */}
+    <div
+      className="
+      bg-white
+      rounded-xl
+      shadow
+      p-6
+      space-y-6
+      "
+    >
       <h2 className="text-xl font-bold">Assistant santé LifeLens AI</h2>
 
-      {/* Zone d'affichage des messages */}
-      <div className="space-y-3 max-h-96 overflow-y-auto">
-        {messages.map((message, index) => (
-          <div key={index}>
-            <strong>{message.role === "user" ? "Vous" : "LifeLens AI"}:</strong>{" "}
-            {message.content}
-          </div>
-        ))}
+      <p className="text-gray-500">
+        Question {currentIndex + 1} / {questions.length}
+      </p>
 
-        {/* Indication pendant la génération */}
-        {loading && <p className="text-gray-500">LifeLens AI analyse...</p>}
+      <div>
+        <p className="font-semibold">{currentQuestion.text}</p>
       </div>
 
-      {/* Zone de saisie utilisateur */}
-      <div className="flex gap-2">
-        <input
-          className="flex-1 border rounded-lg px-3 py-2"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Décrivez vos symptômes..."
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              sendMessage();
-            }
-          }}
-        />
+      <textarea
+        value={answer}
+        onChange={(e) => setAnswer(e.target.value)}
+        placeholder="Votre réponse..."
+        className="
+        w-full
+        border
+        rounded-lg
+        p-3
+        "
+      />
 
-        <button
-          onClick={sendMessage}
-          disabled={loading}
-          className="
-            bg-blue-600
-            text-white
-            px-4
-            rounded-lg
-            disabled:opacity-50
-          "
-        >
-          Envoyer
-        </button>
-      </div>
+      <button
+        onClick={handleNext}
+        className="
+        w-full
+        bg-blue-600
+        text-white
+        rounded-lg
+        py-3
+        "
+      >
+        {currentIndex === questions.length - 1
+          ? "Terminer"
+          : "Question suivante"}
+      </button>
     </div>
   );
 }
